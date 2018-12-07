@@ -47,7 +47,7 @@ class FileList {
         });
     }
 
-    async getTorrentz(query) {
+    async getTorrentzAsync(query) {
         let page = 0;
         let hasResults = true;
         let torrentz = [];
@@ -90,7 +90,7 @@ class FileList {
         return torrentz;
     }
 
-    async getDetails(torrentRelUrl) {
+    async getDetailsAsync(torrentRelUrl) {
         return request.get(this.baseUrl + "/" + torrentRelUrl, {
             resolveWithFullResponse: true,
             headers: {
