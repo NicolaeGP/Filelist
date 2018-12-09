@@ -47,7 +47,7 @@ class FileList {
         });
     }
 
-    async getTorrentzAsync(query,cat,searchin,sort) {
+    async getTorrentzAsync(query, cat, searchin, sort) {
         let page = 0;
         let hasResults = true;
         let torrentz = [];
@@ -55,6 +55,7 @@ class FileList {
         //this can be optimized to run in paralel but it's not needed and might cause throttling
         //remove the await and add the processing of the request in then of the request
         //return a list of promises and use promise.all
+        //best case scenario you can make x number of requests because you must check if there are still results in the response. hasResults must be set to false somewhere
         while (hasResults) {
             let response = await request.get(this.baseUrl + "/browse.php", {
                 resolveWithFullResponse: true,
@@ -90,7 +91,7 @@ class FileList {
         return torrentz;
     }
 
-    async getDetailsAsync(torrentRelUrl) {
+    async getDetailsAsync(torrentRelUrl, torrentTitle) {
         return request.get(this.baseUrl + "/" + torrentRelUrl, {
             resolveWithFullResponse: true,
             headers: {
@@ -102,7 +103,8 @@ class FileList {
             const decompressedBody = decompress(response.body);
             const decompressedBodyString = this.textDecoder.decode(decompressedBody);
             const body = cheerio.load(decompressedBodyString);
-            return body('tt').text();
+            let data = body('tt').text() === "" ? body('.quote').text() : body('tt').text();
+            return torrentTitle + "\n" + data;
         });
     }
 
@@ -139,17 +141,20 @@ async function RunCode(expression, query) {
         // const loginpage = await fl.getLoginPageAsync();
         const loginResponse = await fl.loginAsync();
         const categories = await fl.getCategoriesAsync();
-        const docsCat = categories.find((cat)=> cat.name.includes('Docs'));
-        const allTorrentz = await fl.getTorrentzAsync(query,docsCat.value,0,0);
+        const docsCat = categories.find((cat) => cat.name.includes('Docs'));
+        const allTorrentz = await fl.getTorrentzAsync(query, docsCat.value, 1, 2);
         const filteredTorrentz = allTorrentz.filter((t) => regex.test(t.title));
         const sortedTorrentz = filteredTorrentz.sort((a, b) => (a.title.length > b.title.length) ? 1 : ((a.title.length < b.title.length) ? -1 : ((a.title > b.title) ? 1 : ((a.title < b.title) ? -1 : 0))));
 
         let data = '';
 
-        for (const torrent of sortedTorrentz) {
-            let details = await fl.getDetailsAsync(torrent.details);
-            data += torrent.title + "\n" + details + "\n \n";
-        }
+        let detailsRequests = sortedTorrentz.map(torrent => fl.getDetailsAsync(torrent.details, torrent.title));
+        const resolvedPromises = await Promise.all(detailsRequests);
+
+        resolvedPromises.forEach(details => {
+            data += details + "\n \n";
+        });
+
 
         fs.appendFileSync('Overview.txt', data);
     } catch (error) {
