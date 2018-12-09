@@ -47,7 +47,7 @@ class FileList {
         });
     }
 
-    async getTorrentzAsync(query) {
+    async getTorrentzAsync(query,cat,searchin,sort) {
         let page = 0;
         let hasResults = true;
         let torrentz = [];
@@ -63,9 +63,9 @@ class FileList {
                 },
                 qs: {
                     search: query,
-                    cat: 16,
-                    searchin: 0,
-                    sort: 0,
+                    cat: cat,
+                    searchin: searchin,
+                    sort: sort,
                     page: page
                 },
                 encoding: null,
@@ -105,6 +105,28 @@ class FileList {
             return body('tt').text();
         });
     }
+
+    async getCategoriesAsync() {
+        let response = await request.get(this.baseUrl + "/browse.php", {
+            resolveWithFullResponse: true,
+            headers: {
+                "Referer": this.baseUrl + "/browse.php",
+            },
+            encoding: null,
+            resolveWithFullResponse: true
+        })
+        let categories = [];
+        const decompressedBody = decompress(response.body);
+        const decompressedBodyString = this.textDecoder.decode(decompressedBody);
+        const body = cheerio.load(decompressedBodyString);
+        const selector = body('select[name="cat"]');
+        selector.children().each((key, option) => {
+            let name = option.firstChild.nodeValue;
+            let value = option.attribs.value;
+            categories.push({ name, value })
+        })
+        return categories;
+    }
 }
 
 async function RunCode(expression, query) {
@@ -116,19 +138,20 @@ async function RunCode(expression, query) {
     try {
         // const loginpage = await fl.getLoginPageAsync();
         const loginResponse = await fl.loginAsync();
-        const allTorrentz = await fl.getTorrentzAsync(query);
+        const categories = await fl.getCategoriesAsync();
+        const docsCat = categories.find((cat)=> cat.name.includes('Docs'));
+        const allTorrentz = await fl.getTorrentzAsync(query,docsCat.value,0,0);
         const filteredTorrentz = allTorrentz.filter((t) => regex.test(t.title));
         const sortedTorrentz = filteredTorrentz.sort((a, b) => (a.title.length > b.title.length) ? 1 : ((a.title.length < b.title.length) ? -1 : ((a.title > b.title) ? 1 : ((a.title < b.title) ? -1 : 0))));
 
-        let data= '';
+        let data = '';
 
         for (const torrent of sortedTorrentz) {
-            let details = await fl.getDetails(torrent.details);
-            data+= torrent.title + "\n" + details+"\n \n";
+            let details = await fl.getDetailsAsync(torrent.details);
+            data += torrent.title + "\n" + details + "\n \n";
         }
 
         fs.appendFileSync('Overview.txt', data);
-
     } catch (error) {
         console.log(error);
     }
