@@ -109,14 +109,14 @@ class FileList {
 
 async function RunCode(expression, query) {
     // #region loginDetails
-    const fl = new FileList([username], [password]);
+    const fl = new FileList('[username]', '[password]');
     // #endregion
 
     let regex = RegExp(expression, "i");
     try {
         // const loginpage = await fl.getLoginPageAsync();
         const loginResponse = await fl.loginAsync();
-        const allTorrentz = await fl.getTorrentz(query);
+        const allTorrentz = await fl.getTorrentzAsync(query);
         const filteredTorrentz = allTorrentz.filter((t) => regex.test(t.title));
         const sortedTorrentz = filteredTorrentz.sort((a, b) => (a.title.length > b.title.length) ? 1 : ((a.title.length < b.title.length) ? -1 : ((a.title > b.title) ? 1 : ((a.title < b.title) ? -1 : 0))));
 
