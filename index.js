@@ -1,7 +1,8 @@
 let request = require("request-promise");
 const cheerio = require('cheerio');
-const decompress = require('brotli/decompress');
 const fs = require('fs');
+var Buffer = require('buffer').Buffer
+var lZ4 = require('lz4')
 
 request = request.defaults({
     jar: request.jar(),
@@ -12,12 +13,13 @@ request = request.defaults({
         "Origin": "https://filelist.ro",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Encoding": "gzip",
         "Accept-Language": "en-US,en;q=0.8,ro;q=0.6"
     },
     followAllRedirects: false,
     followRedirect: false,
-    simple: false
+    simple: false,
+    gzip: true
 });
 
 class FileList {
@@ -29,7 +31,7 @@ class FileList {
     }
 
     async loginAsync() {
-        return request.post(this.baseUrl + "/takelogin.php", {
+        return await request.post(this.baseUrl + "/takelogin.php", {
             headers: {
                 Referer: this.baseUrl + "/login.php?returnto=%2F",
             },
@@ -72,10 +74,7 @@ class FileList {
                 encoding: null,
                 resolveWithFullResponse: true
             })
-
-            const decompressedBody = decompress(response.body);
-            const decompressedBodyString = this.textDecoder.decode(decompressedBody);
-            const body = cheerio.load(decompressedBodyString);
+            const body = cheerio.load(response.body);
             const torrentRows = body(".torrentrow");
             if (torrentRows.length === 0)
                 hasResults = false;
@@ -100,9 +99,7 @@ class FileList {
             encoding: null,
             resolveWithFullResponse: true
         }).then(response => {
-            const decompressedBody = decompress(response.body);
-            const decompressedBodyString = this.textDecoder.decode(decompressedBody);
-            const body = cheerio.load(decompressedBodyString);
+            const body = cheerio.load(response.body);
             let data = body('tt').text() === "" ? body('.quote').text() : body('tt').text();
             return torrentTitle + "\n" + data;
         });
@@ -118,9 +115,7 @@ class FileList {
             resolveWithFullResponse: true
         })
         let categories = [];
-        const decompressedBody = decompress(response.body);
-        const decompressedBodyString = this.textDecoder.decode(decompressedBody);
-        const body = cheerio.load(decompressedBodyString);
+        const body = cheerio.load(response.body);
         const selector = body('select[name="cat"]');
         selector.children().each((key, option) => {
             let name = option.firstChild.nodeValue;
