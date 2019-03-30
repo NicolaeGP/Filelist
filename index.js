@@ -1,8 +1,6 @@
 let request = require("request-promise");
 const cheerio = require('cheerio');
 const fs = require('fs');
-var Buffer = require('buffer').Buffer
-var lZ4 = require('lz4')
 
 request = request.defaults({
     jar: request.jar(),
