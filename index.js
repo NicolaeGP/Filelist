@@ -26,6 +26,7 @@ class FileList {
         this.password = password;
         this.baseUrl = "https://filelist.ro";
         this.textDecoder = new TextDecoder("utf-8");
+        this.validator = "";
     }
 
     async loginAsync() {
@@ -34,16 +35,21 @@ class FileList {
                 Referer: this.baseUrl + "/login.php?returnto=%2F",
             },
             formData: {
+                validator: this.validator,
                 username: this.username,
-                password: this.password
+                password: this.password,
+                returnto: "%2F"
             },
             resolveWithFullResponse: true,
         });
     }
 
-    async getLoginPageAsync() {
+    async setValidator() {
         return request.get(this.baseUrl + "/login.php", {
             resolveWithFullResponse: true
+        }).then(response => {
+            const body = cheerio.load(response.body);
+            this.validator = body("input[name='validator']").attr('value');
         });
     }
 
@@ -131,7 +137,7 @@ async function RunCode(expression, query) {
 
     let regex = RegExp(expression, "i");
     try {
-        // const loginpage = await fl.getLoginPageAsync();
+        await fl.setValidator();
         const loginResponse = await fl.loginAsync();
         const categories = await fl.getCategoriesAsync();
         const docsCat = categories.find((cat) => cat.name.includes('Docs'));
